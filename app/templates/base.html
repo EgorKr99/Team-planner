@@ -1,0 +1,51 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="/static/app.css">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ title or "Планирование" }}</title>
+</head>
+<body>
+
+{% if current %}
+<header class="topbar">
+  <div class="topbar-inner">
+    <nav class="nav">
+      <a href="/day" class="nav-link {% if request.url.path == '/day' %}active{% endif %}">
+        День
+      </a>
+
+      <a href="/week" class="nav-link {% if request.url.path == '/week' %}active{% endif %}">
+        Неделя
+      </a>
+
+      {% if current.role in ("admin","viewer") %}
+        <a href="/reports/daily?d={{ date or '' }}"
+           class="nav-link {% if request.url.path.startswith('/reports') %}active{% endif %}">
+          Отчёты
+        </a>
+      {% endif %}
+
+      {% if current.role == "admin" %}
+        <a href="/admin" class="nav-link {% if request.url.path == '/admin' %}active{% endif %}">
+          Админка
+        </a>
+      {% endif %}
+    </nav>
+
+    <div class="user-box">
+      <span class="user-name">{{ current.name }}</span>
+      <span class="user-role">{{ current.role }}</span>
+      <a href="/logout" class="logout">Выход</a>
+    </div>
+  </div>
+</header>
+{% endif %}
+
+<main class="container">
+  {% block content %}{% endblock %}
+</main>
+
+</body>
+</html>

@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Дневной план: {{ user.name }}</h2>
+
+<div class="row">
+  <form method="get" action="/day" class="row">
+    <label>Дата:</label>
+    <input type="date" name="d" value="{{ date }}">
+    <button type="submit">Показать</button>
+  </form>
+  <div class="muted">Неделя: <a href="/week?d={{ date }}">открыть</a></div>
+</div>
+
+<p><b>Итого часов за {{ date }}:</b> {{ "%.2f"|format(day_total) }}</p>
+
+<p class="muted">
+  “Ввод за дату” относится к выбранной дате. “Факт (всего)” — сумма часов по задаче за все дни.
+</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Задача</th>
+      <th>План, ч</th>
+      <th>Факт, ч (всего)</th>
+      <th>Дедлайн</th>
+      <th>Прогресс (текущий)</th>
+      <th>Ввод за дату: часы</th>
+      <th>Ввод за дату: результат</th>
+      <th>Прогресс (на конец дня)</th>
+      <th>Готово</th>
+      <th></th>
+    </tr>
+  </thead>
+
+  <tbody>
+  {% for t in tasks %}
+    {% set planned = stats[t.id]["planned"] %}
+    {% set actual = stats[t.id]["actual"] %}
+    {% set is_done = (t.status == "done") or (t.current_progress >= 100) %}
+    {% set is_overdue = (t.end_date < date) and (not is_done) %}
+    {% set wl = log_by_task.get(t.id) %}
+
+    {% if is_done %}
+      {% set cls = "ok" if actual <= planned else "bad" %}
+    {% elif is_overdue %}
+      {% set cls = "overdue" %}
+    {% else %}
+      {% set cls = "mid" %}
+    {% endif %}
+
+    <tr class="{{ cls }}">
+      <td>{{ t.title }}</td>
+      <td>{{ "%.2f"|format(planned) }}</td>
+      <td>{{ "%.2f"|format(actual) }}</td>
+      <td>{{ t.end_date }}</td>
+      <td>{{ t.current_progress }}%</td>
+
+      <td colspan="5">
+        <form method="post" action="/day/log" class="row">
+          <input type="hidden" name="d" value="{{ date }}">
+          <input type="hidden" name="task_id" value="{{ t.id }}">
+
+          <input type="number" step="0.25" min="0" name="hours" placeholder="часы"
+                 value="{{ '%.2f'|format(wl.hours) if wl else '' }}">
+
+          <input type="text" name="comment" placeholder="краткий результат"
+                 value="{{ wl.comment if wl else '' }}">
+
+          <input type="number" min="0" max="100" name="progress" placeholder="%"
+                 value="{{ wl.progress if wl else t.current_progress }}">
+
+          <label class="nowrap">
+            <input type="checkbox" name="is_done" {% if wl and wl.is_done %}checked{% endif %}>
+            Готово
+          </label>
+
+          <button type="submit">Сохранить</button>
+        </form>
+      </td>
+    </tr>
+
+    {% if wl %}
+    <tr class="subrow">
+      <td colspan="10" class="muted">
+        Уже внесено за {{ date }}:
+        <b>{{ "%.2f"|format(wl.hours or 0) }} ч</b>,
+        <b>{{ wl.progress }}%</b>
+        {% if wl.comment %}— {{ wl.comment }}{% endif %}
+        (повторное сохранение перезапишет запись)
+      </td>
+    </tr>
+    {% endif %}
+
+  {% endfor %}
+  </tbody>
+</table>
+
+<p class="muted">
+  Подсветка: зелёный/красный — только для завершённых задач (в пределах плана / перерасход).
+  Жёлтый — просрочено и не завершено.
+</p>
+{% endblock %}

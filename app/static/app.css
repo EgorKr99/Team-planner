@@ -1,0 +1,94 @@
+body { font-family: Arial, sans-serif; margin: 0; background: #f6f7fb; }
+.container { max-width: 1200px; margin: 0 auto; padding: 16px; }
+table { width: 100%; border-collapse: collapse; background: #fff; }
+th, td { border: 1px solid #e5e7eb; padding: 8px; vertical-align: top; }
+th { background: #f3f4f6; text-align: left; }
+.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.col { display: flex; flex-direction: column; gap: 8px; }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.card { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 12px; }
+.muted { color: #6b7280; }
+.small { font-size: 12px; }
+.nowrap { white-space: nowrap; }
+
+tr.ok { background: #ecfdf5; }
+tr.mid { background: #f9fafb; }
+tr.bad { background: #fef2f2; }
+tr.overdue { background: #fff7ed; } /* мягкий оранжевый */
+tr.subrow td { border-top: 0; background: #ffffff; }
+
+.noprint {}
+.pagebreak { height: 12px; }
+
+@media print {
+  body { background: #fff; }
+  .noprint { display: none !important; }
+  .pagebreak { page-break-before: always; }
+  .container { max-width: none; padding: 0; }
+}
+/* ===== Top navigation ===== */
+
+.topbar {
+  background: #ffffff;
+  border-bottom: 1px solid #e5e7eb;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.topbar-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 10px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.nav {
+  display: flex;
+  gap: 12px;
+}
+
+.nav-link {
+  padding: 6px 12px;
+  border-radius: 8px;
+  text-decoration: none;
+  color: #374151;
+  font-weight: 500;
+}
+
+.nav-link:hover {
+  background: #f3f4f6;
+}
+
+.nav-link.active {
+  background: #e5e7eb;
+  color: #111827;
+}
+
+.user-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+}
+
+.user-name {
+  font-weight: 600;
+}
+
+.user-role {
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.logout {
+  margin-left: 8px;
+  text-decoration: none;
+  color: #b91c1c;
+}
+
+.logout:hover {
+  text-decoration: underline;
+}

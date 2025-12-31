@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="noprint row">
+  <h2 style="margin:0;">Отчёт за {{ date }}</h2>
+  <button onclick="window.print()">Печать</button>
+</div>
+
+{% for u in users %}
+  <h3>{{ u.name }}</h3>
+  <table>
+    <thead>
+      <tr><th>Задача</th><th>Часы</th><th>Прогресс</th><th>Комментарий</th></tr>
+    </thead>
+    <tbody>
+      {% for wl, t in logs_by_user[u.id] %}
+        <tr>
+          <td>{{ t.title if t else ("Task #" ~ wl.task_id) }}</td>
+          <td>{{ "%.2f"|format(wl.hours or 0) }}</td>
+          <td>{{ wl.progress }}%</td>
+          <td>{{ wl.comment }}</td>
+        </tr>
+      {% endfor %}
+      {% if logs_by_user[u.id]|length == 0 %}
+        <tr><td colspan="4">Нет записей</td></tr>
+      {% endif %}
+    </tbody>
+  </table>
+  <div class="pagebreak"></div>
+{% endfor %}
+{% endblock %}

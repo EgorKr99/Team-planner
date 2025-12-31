@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Админка</h2>
+<p class="muted">Вы вошли как: {{ admin.name }} ({{ admin.role }}).</p>
+
+<div class="grid">
+  <div class="card">
+    <h3>Сотрудники / доступ</h3>
+
+    <form method="post" action="/admin/users/create" class="row">
+      <input name="name" placeholder="Имя" required>
+      <input name="login" placeholder="Логин" required>
+      <input name="password" placeholder="Пароль" required>
+      <select name="role">
+        <option value="employee">employee</option>
+        <option value="viewer">viewer</option>
+        <option value="admin">admin</option>
+      </select>
+      <button type="submit">Добавить</button>
+    </form>
+
+
+    <table>
+      <thead>
+        <tr><th>Имя</th><th>Роль</th><th>Активен</th><th>Ссылка</th><th>Действия</th></tr>
+      </thead>
+      <tbody>
+      {% for u in users %}
+        <tr>
+          <td>{{ u.name }}</td>
+          <td>{{ u.role }}</td>
+          <td>{{ "да" if u.is_active else "нет" }}</td>
+          <td>
+              <input type="hidden" name="user_id" value="{{ u.id }}">
+              <button type="submit">Сменить ссылку</button>
+            </form>
+            <form method="post" action="/admin/users/toggle_active" style="display:inline;">
+              <input type="hidden" name="user_id" value="{{ u.id }}">
+              <button type="submit">{{ "Отключить" if u.is_active else "Включить" }}</button>
+            </form>
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3>Задачи</h3>
+
+    <form method="post" action="/admin/tasks/create" class="col">
+      <input name="title" placeholder="Название задачи/подзадачи" required>
+
+      <div class="row">
+        <label>Исполнитель:</label>
+        <select name="assignee_id">
+          <option value="">(не назначено)</option>
+          {% for u in users %}
+            {% if u.role in ("admin","employee") and u.is_active %}
+              <option value="{{ u.id }}">{{ u.name }}</option>
+            {% endif %}
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="row">
+        <label>Старт:</label>
+        <input type="date" name="start_date" required>
+        <label>Финиш:</label>
+        <input type="date" name="end_date" required>
+      </div>
+
+      <div class="row">
+        <label>План, ч:</label>
+        <input type="number" step="0.25" min="0" name="planned_hours" value="0">
+        <label>Приоритет:</label>
+        <input type="number" min="1" max="5" name="priority" value="3">
+      </div>
+
+      <button type="submit">Создать задачу</button>
+    </form>
+
+    <h4>Список задач</h4>
+    <table>
+      <thead>
+        <tr><th>ID</th><th>Задача</th><th>Исполнитель</th><th>Даты</th><th>План</th><th>Прогресс</th><th>Статус</th></tr>
+      </thead>
+      <tbody>
+      {% for t in tasks %}
+        <tr>
+          <td>{{ t.id }}</td>
+          <td>{{ t.title }}</td>
+          <td>{{ user_map[t.assignee_id].name if t.assignee_id in user_map else "-" }}</td>
+          <td class="small">{{ t.start_date }} → {{ t.end_date }}</td>
+          <td>{{ "%.2f"|format(t.planned_hours or 0) }}</td>
+          <td>{{ t.current_progress }}%</td>
+          <td>{{ t.status }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+
+    <p class="muted">
+      Просмотр недели: <code>/week</code><br>
+      Отчёт за день: <code>/reports/daily&d=YYYY-MM-DD</code>
+    </p>
+  </div>
+</div>
+{% endblock %}
