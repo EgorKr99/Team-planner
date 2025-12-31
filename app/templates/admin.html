@@ -22,7 +22,7 @@
 
     <table>
       <thead>
-        <tr><th>Имя</th><th>Роль</th><th>Активен</th><th>Ссылка</th><th>Действия</th></tr>
+        <tr><th>Имя</th><th>Роль</th><th>Активен</th></tr>
       </thead>
       <tbody>
       {% for u in users %}
@@ -30,15 +30,6 @@
           <td>{{ u.name }}</td>
           <td>{{ u.role }}</td>
           <td>{{ "да" if u.is_active else "нет" }}</td>
-          <td>
-              <input type="hidden" name="user_id" value="{{ u.id }}">
-              <button type="submit">Сменить ссылку</button>
-            </form>
-            <form method="post" action="/admin/users/toggle_active" style="display:inline;">
-              <input type="hidden" name="user_id" value="{{ u.id }}">
-              <button type="submit">{{ "Отключить" if u.is_active else "Включить" }}</button>
-            </form>
-          </td>
         </tr>
       {% endfor %}
       </tbody>
@@ -102,7 +93,7 @@
 
     <p class="muted">
       Просмотр недели: <code>/week</code><br>
-      Отчёт за день: <code>/reports/daily&d=YYYY-MM-DD</code>
+      Отчёт за день: <code>/reports/daily?d=YYYY-MM-DD</code>
     </p>
   </div>
 </div>
