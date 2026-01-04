@@ -95,7 +95,6 @@ def admin_view(request: Request, db: Session = Depends(get_db)):
     require_role(admin, {"admin"})
 
     users = db.query(User).order_by(User.role.asc(), User.name.asc()).all()
-    tasks = db.query(Task).order_by(Task.end_date.asc(), Task.priority.desc()).all()
     group_tasks = db.query(Task).filter(Task.is_group == True).order_by(Task.end_date.asc()).all()
 
     all_tasks = db.query(Task).order_by(Task.end_date.asc(), Task.priority.desc()).all()

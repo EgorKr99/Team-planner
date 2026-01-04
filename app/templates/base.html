@@ -1,43 +1,31 @@
 <!doctype html>
-<html>
+<html lang="ru">
 <head>
   <meta charset="utf-8">
-  <link rel="stylesheet" href="/static/app.css">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ title or "Планирование" }}</title>
+  <link rel="stylesheet" href="/static/app.css">
 </head>
 <body>
 
 {% if current %}
-<header class="topbar">
+<header class="topbar noprint">
   <div class="topbar-inner">
     <nav class="nav">
-      <a href="/day" class="nav-link {% if request.url.path == '/day' %}active{% endif %}">
-        День
-      </a>
-
-      <a href="/week" class="nav-link {% if request.url.path == '/week' %}active{% endif %}">
-        Неделя
-      </a>
-
+      <a class="nav-link{% if request.url.path == '/day' %} active{% endif %}" href="/day">День</a>
+      <a class="nav-link{% if request.url.path == '/week' %} active{% endif %}" href="/week">Неделя</a>
       {% if current.role in ("admin","viewer") %}
-        <a href="/reports/daily?d={{ date or '' }}"
-           class="nav-link {% if request.url.path.startswith('/reports') %}active{% endif %}">
-          Отчёты
-        </a>
+        <a class="nav-link{% if request.url.path.startswith('/reports') %} active{% endif %}" href="/reports/daily?d={{ date.isoformat() if date else "" }}">Отчёты</a>
       {% endif %}
-
       {% if current.role == "admin" %}
-        <a href="/admin" class="nav-link {% if request.url.path == '/admin' %}active{% endif %}">
-          Админка
-        </a>
+        <a class="nav-link{% if request.url.path == '/admin' %} active{% endif %}" href="/admin">Админка</a>
       {% endif %}
     </nav>
 
     <div class="user-box">
       <span class="user-name">{{ current.name }}</span>
       <span class="user-role">{{ current.role }}</span>
-      <a href="/logout" class="logout">Выход</a>
+      <a class="logout" href="/logout">Выход</a>
     </div>
   </div>
 </header>

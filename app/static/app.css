@@ -41,6 +41,17 @@ tr.subrow td { border-top: 0; background: #ffffff; padding-top: 0; }
   .pagebreak { page-break-before: always; }
   .container { max-width: none; padding: 0; }
 }
+
+.desc.clamp {
+  max-height: 1.4em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.desc { cursor: pointer; }
+
+
 /* ===== Top navigation ===== */
 
 .topbar {

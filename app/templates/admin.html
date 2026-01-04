@@ -6,7 +6,7 @@
 
 <div class="grid">
   <div class="card">
-    <h3>Сотрудники / доступ</h3>
+    <h3>Сотрудники</h3>
 
     <form method="post" action="/admin/users/create" class="row" style="gap:10px; flex-wrap:wrap;">
       <input name="name" placeholder="Имя" required>
@@ -22,12 +22,7 @@
 
     <table class="tbl">
       <thead>
-        <tr>
-          <th>Имя</th>
-          <th>Роль</th>
-          <th>Активен</th>
-          <th></th>
-        </tr>
+        <tr><th>Имя</th><th>Роль</th><th>Активен</th><th></th></tr>
       </thead>
       <tbody>
       {% for u in users %}
@@ -48,21 +43,18 @@
   </div>
 
   <div class="card">
-    <h3>Задачи</h3>
+    <h3>Создать задачу</h3>
 
     <form method="post" action="/admin/tasks/create" class="col" style="gap:10px;">
       <input name="title" placeholder="Название задачи" required>
 
       <label>Описание</label>
-      <textarea name="description" rows="3" placeholder="Критерии готовности, детали, ссылки..."></textarea>
+      <textarea name="description" rows="3" placeholder="Критерий готовности, детали, ссылки..."></textarea>
 
       <div class="row" style="gap:10px; align-items:center; flex-wrap:wrap;">
-        <label class="nowrap">
-          <input type="checkbox" name="is_group">
-          Общая задача
-        </label>
+        <label class="nowrap"><input type="checkbox" name="is_group"> Общая задача</label>
 
-        <label>Родитель (общая задача):</label>
+        <label>Родитель:</label>
         <select name="parent_id">
           <option value="">(нет)</option>
           {% for g in group_tasks %}
@@ -84,23 +76,19 @@
       </div>
 
       <div class="row" style="gap:10px; align-items:center; flex-wrap:wrap;">
-        <label>Старт:</label>
-        <input type="date" name="start_date" required>
-        <label>Финиш:</label>
-        <input type="date" name="end_date" required>
+        <label>Старт:</label><input type="date" name="start_date" required>
+        <label>Финиш:</label><input type="date" name="end_date" required>
       </div>
 
       <div class="row" style="gap:10px; align-items:center; flex-wrap:wrap;">
-        <label>План, ч:</label>
-        <input type="number" step="0.25" min="0" name="planned_hours" value="0">
-        <label>Приоритет:</label>
-        <input type="number" min="1" max="5" name="priority" value="3">
+        <label>План, ч:</label><input type="number" step="0.25" min="0" name="planned_hours" value="0">
+        <label>Приоритет:</label><input type="number" min="1" max="5" name="priority" value="3">
       </div>
 
       <button type="submit">Создать</button>
     </form>
 
-    <h4 style="margin-top:16px;">Список задач</h4>
+    <h3 style="margin-top:16px;">Список задач</h3>
 
     <table class="tbl">
       <thead>
@@ -123,13 +111,11 @@
             {% if level == 1 %}<span class="muted">↳</span>{% endif %}
             {% if t.is_group %}<b>{{ t.title }}</b>{% else %}{{ t.title }}{% endif %}
           </td>
-
-          <td class="desc-cell">
+          <td>
             <div class="desc clamp" onclick="this.classList.toggle('clamp')">
               {{ t.description or "" }}
             </div>
           </td>
-
           <td>{{ user_map[t.assignee_id].name if t.assignee_id in user_map else "-" }}</td>
           <td class="small">
             {{ t.start_date.strftime('%d.%m.%y') }} → {{ t.end_date.strftime('%d.%m.%y') }}

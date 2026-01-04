@@ -18,18 +18,22 @@ class User(Base):
 class Task(Base):
     __tablename__ = "tasks"
     id = Column(Integer, primary_key=True)
-    parent_id = Column(Integer, ForeignKey("tasks.id"), nullable=True)
+
     title = Column(String, nullable=False)
     description = Column(Text, nullable=True)
+
     is_group = Column(Boolean, default=False)
     parent_id = Column(Integer, ForeignKey("tasks.id"), nullable=True)
+
     assignee_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     start_date = Column(Date, nullable=False)
     end_date = Column(Date, nullable=False)
+
     planned_hours = Column(Float, default=0.0)
     priority = Column(Integer, default=3)
-    status = Column(String, default="todo")  # todo/in_progress/done
+    status = Column(String, default="todo")
     current_progress = Column(Integer, default=0)
+
 
 class Worklog(Base):
     __tablename__ = "worklogs"
