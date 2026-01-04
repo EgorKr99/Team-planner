@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
+
 <h2>Админка</h2>
 <p class="muted">Вы вошли как: {{ admin.name }} ({{ admin.role }}).</p>
 
@@ -7,7 +8,7 @@
   <div class="card">
     <h3>Сотрудники / доступ</h3>
 
-    <form method="post" action="/admin/users/create" class="row">
+    <form method="post" action="/admin/users/create" class="row" style="gap:10px; flex-wrap:wrap;">
       <input name="name" placeholder="Имя" required>
       <input name="login" placeholder="Логин" required>
       <input name="password" placeholder="Пароль" required>
@@ -19,10 +20,14 @@
       <button type="submit">Добавить</button>
     </form>
 
-
-    <table>
+    <table class="tbl">
       <thead>
-        <tr><th>Имя</th><th>Роль</th><th>Активен</th><th>Действия</th></tr>
+        <tr>
+          <th>Имя</th>
+          <th>Роль</th>
+          <th>Активен</th>
+          <th></th>
+        </tr>
       </thead>
       <tbody>
       {% for u in users %}
@@ -32,10 +37,10 @@
           <td>{{ "да" if u.is_active else "нет" }}</td>
           <td>
             <form method="post" action="/admin/users/toggle_active" style="display:inline;">
-                <input type="hidden" name="user_id" value="{{ u.id }}">
-                <button type="submit">{{ "Отключить" if u.is_active else "Включить" }}</button>
+              <input type="hidden" name="user_id" value="{{ u.id }}">
+              <button type="submit">{{ "Отключить" if u.is_active else "Включить" }}</button>
             </form>
-</td>
+          </td>
         </tr>
       {% endfor %}
       </tbody>
@@ -45,25 +50,28 @@
   <div class="card">
     <h3>Задачи</h3>
 
-    <form method="post" action="/admin/tasks/create" class="col">
-      <input name="title" placeholder="Название задачи/подзадачи" required>
+    <form method="post" action="/admin/tasks/create" class="col" style="gap:10px;">
+      <input name="title" placeholder="Название задачи" required>
+
       <label>Описание</label>
-      <textarea name="description" rows="3" placeholder="Краткое описание, критерий готовности, детали..."></textarea>
+      <textarea name="description" rows="3" placeholder="Критерии готовности, детали, ссылки..."></textarea>
 
-      <div class="row">
-          <label class="nowrap">
-              <input type="checkbox" name="is_group"> Общая задача
-          </label>
+      <div class="row" style="gap:10px; align-items:center; flex-wrap:wrap;">
+        <label class="nowrap">
+          <input type="checkbox" name="is_group">
+          Общая задача
+        </label>
 
-          <label>Родитель (общая задача):</label>
-              <select name="parent_id">
-                  <option value="">(нет)</option>
-                  {% for g in group_tasks %}
-                    <option value="{{ g.id }}">{{ g.title }}</option>
-                  {% endfor %}
-              </select>
+        <label>Родитель (общая задача):</label>
+        <select name="parent_id">
+          <option value="">(нет)</option>
+          {% for g in group_tasks %}
+            <option value="{{ g.id }}">{{ g.title }}</option>
+          {% endfor %}
+        </select>
       </div>
-      <div class="row">
+
+      <div class="row" style="gap:10px; align-items:center; flex-wrap:wrap;">
         <label>Исполнитель:</label>
         <select name="assignee_id">
           <option value="">(не назначено)</option>
@@ -75,57 +83,70 @@
         </select>
       </div>
 
-      <div class="row">
+      <div class="row" style="gap:10px; align-items:center; flex-wrap:wrap;">
         <label>Старт:</label>
         <input type="date" name="start_date" required>
         <label>Финиш:</label>
         <input type="date" name="end_date" required>
       </div>
 
-      <div class="row">
+      <div class="row" style="gap:10px; align-items:center; flex-wrap:wrap;">
         <label>План, ч:</label>
         <input type="number" step="0.25" min="0" name="planned_hours" value="0">
         <label>Приоритет:</label>
         <input type="number" min="1" max="5" name="priority" value="3">
       </div>
 
-      <button type="submit">Создать задачу</button>
+      <button type="submit">Создать</button>
     </form>
 
-    <h4>Список задач</h4>
-    <table>
+    <h4 style="margin-top:16px;">Список задач</h4>
+
+    <table class="tbl">
       <thead>
-        <tr><th>ID</th><th>Задача</th><th>Исполнитель</th><th>Даты</th><th>План</th><th>Прогресс</th><th>Статус</th></tr>
+        <tr>
+          <th>ID</th>
+          <th>Задача</th>
+          <th>Описание</th>
+          <th>Исполнитель</th>
+          <th>Даты</th>
+          <th class="num">План</th>
+          <th class="num">Прогресс</th>
+          <th>Статус</th>
+        </tr>
       </thead>
       <tbody>
       {% for t, level in task_rows %}
         <tr>
-            <td>{{ t.id }}</td>
-            <td>
-                {% if level == 1 %}&nbsp;&nbsp;&nbsp;↳{% endif %}
-                {% if t.is_group %}<b>{{ t.title }}</b>{% else %}{{ t.title }}{% endif %}
-            </td>
-            <td class="desc-cell"><div class="desc clamp" onclick="this.classList.toggle('clamp')">{{ t.description or "" }}</div></td>
-            ...
-        </tr>
-      {% endfor %}
-        <tr>
           <td>{{ t.id }}</td>
-          <td>{{ t.title }}</td>
+          <td>
+            {% if level == 1 %}<span class="muted">↳</span>{% endif %}
+            {% if t.is_group %}<b>{{ t.title }}</b>{% else %}{{ t.title }}{% endif %}
+          </td>
+
+          <td class="desc-cell">
+            <div class="desc clamp" onclick="this.classList.toggle('clamp')">
+              {{ t.description or "" }}
+            </div>
+          </td>
+
           <td>{{ user_map[t.assignee_id].name if t.assignee_id in user_map else "-" }}</td>
-          <td class="small">{{ t.start_date }} → {{ t.end_date }}</td>
-          <td>{{ "%.2f"|format(t.planned_hours or 0) }}</td>
-          <td>{{ t.current_progress }}%</td>
+          <td class="small">
+            {{ t.start_date.strftime('%d.%m.%y') }} → {{ t.end_date.strftime('%d.%m.%y') }}
+          </td>
+          <td class="num">{{ "%.2f"|format(t.planned_hours or 0) }}</td>
+          <td class="num">{{ t.current_progress }}%</td>
           <td>{{ t.status }}</td>
         </tr>
       {% endfor %}
       </tbody>
     </table>
 
-    <p class="muted">
+    <p class="muted" style="margin-top:10px;">
       Просмотр недели: <code>/week</code><br>
       Отчёт за день: <code>/reports/daily?d=YYYY-MM-DD</code>
     </p>
   </div>
 </div>
+
 {% endblock %}

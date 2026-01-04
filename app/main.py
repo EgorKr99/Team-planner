@@ -126,7 +126,7 @@ def admin_view(request: Request, db: Session = Depends(get_db)):
         "current": admin,
         "users": users,
         "group_tasks": group_tasks,
-        "tasks_rows": tasks,
+        "task_rows": task_rows,
         "user_map": user_map,
     })
 
