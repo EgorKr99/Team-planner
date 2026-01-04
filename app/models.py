@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Date, DateTime, Float, Boolean, ForeignKey
+from sqlalchemy import Column, Integer, String, Date, DateTime, Float, Boolean, ForeignKey, Text
 from datetime import datetime
 from .db import Base
 
@@ -20,6 +20,9 @@ class Task(Base):
     id = Column(Integer, primary_key=True)
     parent_id = Column(Integer, ForeignKey("tasks.id"), nullable=True)
     title = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
+    is_group = Column(Boolean, default=False)
+    parent_id = Column(Integer, ForeignKey("tasks.id"), nullable=True)
     assignee_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     start_date = Column(Date, nullable=False)
     end_date = Column(Date, nullable=False)

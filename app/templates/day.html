@@ -1,33 +1,42 @@
 {% extends "base.html" %}
 {% block content %}
+
 <h2>Дневной план: {{ user.name }}</h2>
 
-<div class="row">
-  <form method="get" action="/day" class="row">
+<div class="row" style="justify-content: space-between; align-items: center;">
+  <form method="get" action="/day" class="row" style="gap: 10px; align-items: center;">
     <label>Дата:</label>
     <input type="date" name="d" value="{{ date }}">
     <button type="submit">Показать</button>
   </form>
-  <div class="muted">Неделя: <a href="/week?d={{ date }}">открыть</a></div>
+
+  <div class="muted">
+    <a href="/week?d={{ date }}">Открыть недельный план</a>
+  </div>
 </div>
 
-<p><b>Итого часов за {{ date }}:</b> {{ "%.2f"|format(day_total) }}</p>
+<p class="summary">
+  <b>Итого часов за {{ date }}:</b> {{ "%.2f"|format(day_total) }}
+</p>
 
 <p class="muted">
   “Ввод за дату” относится к выбранной дате. “Факт (всего)” — сумма часов по задаче за все дни.
 </p>
 
-<table>
+{% if not tasks %}
+  <p class="muted">На выбранную дату задач нет.</p>
+{% else %}
+<table class="tbl">
   <thead>
     <tr>
       <th>Задача</th>
-      <th>План, ч</th>
-      <th>Факт, ч (всего)</th>
+      <th class="num">План, ч</th>
+      <th class="num">Факт, ч (всего)</th>
       <th>Дедлайн</th>
-      <th>Прогресс (текущий)</th>
-      <th>Ввод за дату: часы</th>
-      <th>Ввод за дату: результат</th>
-      <th>Прогресс (на конец дня)</th>
+      <th class="num">Прогресс</th>
+      <th class="num">Часы (за дату)</th>
+      <th>Результат (за дату)</th>
+      <th class="num">Прогресс на конец дня</th>
       <th>Готово</th>
       <th></th>
     </tr>
@@ -50,24 +59,34 @@
     {% endif %}
 
     <tr class="{{ cls }}">
-      <td>{{ t.title }}</td>
-      <td>{{ "%.2f"|format(planned) }}</td>
-      <td>{{ "%.2f"|format(actual) }}</td>
-      <td>{{ t.end_date }}</td>
-      <td>{{ t.current_progress }}%</td>
+      <td class="task">
+        <div class="task-title">{{ t.title }}</div>
+      </td>
+
+      <td class="num">{{ "%.2f"|format(planned) }}</td>
+      <td class="num">{{ "%.2f"|format(actual) }}</td>
+      <td class="small">{{ t.end_date }}</td>
+      <td class="num">{{ t.current_progress }}%</td>
 
       <td colspan="5">
-        <form method="post" action="/day/log" class="row">
+        <form method="post" action="/day/log" class="row dayform" style="gap: 8px; align-items: center;">
           <input type="hidden" name="d" value="{{ date }}">
           <input type="hidden" name="task_id" value="{{ t.id }}">
 
-          <input type="number" step="0.25" min="0" name="hours" placeholder="часы"
-                 value="{{ '%.2f'|format(wl.hours) if wl else '' }}">
+          <div class="hoursbox">
+            <input class="hours-input" type="number" step="0.25" min="0" name="hours" placeholder="часы"
+                   value="{{ '%.2f'|format(wl.hours) if wl else '' }}">
+            <div class="quick">
+              <button type="button" class="qbtn" onclick="incHours(this, 0.5)">+0.5</button>
+              <button type="button" class="qbtn" onclick="incHours(this, 1)">+1</button>
+              <button type="button" class="qbtn" onclick="incHours(this, 2)">+2</button>
+            </div>
+          </div>
 
-          <input type="text" name="comment" placeholder="краткий результат"
+          <input class="comment-input" type="text" name="comment" placeholder="краткий результат"
                  value="{{ wl.comment if wl else '' }}">
 
-          <input type="number" min="0" max="100" name="progress" placeholder="%"
+          <input class="prog-input" type="number" min="0" max="100" name="progress" placeholder="%"
                  value="{{ wl.progress if wl else t.current_progress }}">
 
           <label class="nowrap">
@@ -100,4 +119,16 @@
   Подсветка: зелёный/красный — только для завершённых задач (в пределах плана / перерасход).
   Жёлтый — просрочено и не завершено.
 </p>
+{% endif %}
+
+<script>
+function incHours(btn, delta) {
+  const form = btn.closest("form");
+  const inp = form.querySelector(".hours-input");
+  const v = parseFloat(inp.value || "0");
+  inp.value = (v + delta).toFixed(2);
+  inp.focus();
+}
+</script>
+
 {% endblock %}

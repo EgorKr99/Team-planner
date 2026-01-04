@@ -10,12 +10,27 @@ th { background: #f3f4f6; text-align: left; }
 .muted { color: #6b7280; }
 .small { font-size: 12px; }
 .nowrap { white-space: nowrap; }
+.tbl { width: 100%; border-collapse: collapse; }
+.tbl th, .tbl td { border-bottom: 1px solid #e5e7eb; padding: 10px; vertical-align: top; }
+.tbl th { text-align: left; font-weight: 600; }
+.num { text-align: right; white-space: nowrap; }
+.task-title { font-weight: 600; }
+.summary { margin: 12px 0; }
 
 tr.ok { background: #ecfdf5; }
-tr.mid { background: #f9fafb; }
 tr.bad { background: #fef2f2; }
-tr.overdue { background: #fff7ed; } /* мягкий оранжевый */
-tr.subrow td { border-top: 0; background: #ffffff; }
+tr.mid { background: #ffffff; }
+tr.overdue { background: #fff7ed; }
+tr.subrow td { border-top: 0; background: #ffffff; padding-top: 0; }
+
+.dayform .comment-input { min-width: 280px; flex: 1; }
+.dayform .prog-input { width: 90px; }
+.hoursbox { display: flex; flex-direction: column; gap: 6px; }
+.hours-input { width: 120px; }
+.quick { display: flex; gap: 6px; }
+.qbtn { padding: 4px 8px; border: 1px solid #e5e7eb; border-radius: 6px; background: #fff; cursor: pointer; }
+.qbtn:hover { background: #f3f4f6; }
+.nowrap { white-space: nowrap; }
 
 .noprint {}
 .pagebreak { height: 12px; }

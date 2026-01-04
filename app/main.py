@@ -96,6 +96,28 @@ def admin_view(request: Request, db: Session = Depends(get_db)):
 
     users = db.query(User).order_by(User.role.asc(), User.name.asc()).all()
     tasks = db.query(Task).order_by(Task.end_date.asc(), Task.priority.desc()).all()
+    group_tasks = db.query(Task).filter(Task.is_group == True).order_by(Task.end_date.asc()).all()
+
+    all_tasks = db.query(Task).order_by(Task.end_date.asc(), Task.priority.desc()).all()
+    children_by_parent = {}
+    for t in all_tasks:
+        if t.parent_id:
+            children_by_parent.setdefault(t.parent_id, []).append(t)
+
+    root_tasks = [t for t in all_tasks if not t.parent_id]
+
+    # упорядочиваем: группы первыми, потом одиночные
+    root_tasks.sort(key=lambda x: (0 if x.is_group else 1, x.end_date, -int(x.priority or 0)))
+
+    task_rows = []
+    for rt in root_tasks:
+        task_rows.append((rt, 0))  # level 0
+        if rt.is_group:
+            kids = children_by_parent.get(rt.id, [])
+            # сортировка внутри группы — позже подключим по параметрам
+            kids.sort(key=lambda x: (x.end_date, -int(x.priority or 0), x.title.lower()))
+            for k in kids:
+                task_rows.append((k, 1))  # level 1
 
     user_map = {u.id: u for u in users}
     return templates.TemplateResponse("admin.html", {
@@ -103,7 +125,8 @@ def admin_view(request: Request, db: Session = Depends(get_db)):
         "admin": admin,
         "current": admin,
         "users": users,
-        "tasks": tasks,
+        "group_tasks": group_tasks,
+        "tasks_rows": tasks,
         "user_map": user_map,
     })
 
@@ -175,6 +198,9 @@ def admin_toggle_active(
 def admin_create_task(
     request: Request,
     title: str = Form(...),
+    description: str = Form(""),
+    is_group: str | None = Form(None),
+    parent_id: str = Form(""),
     assignee_id: str = Form(...),
     start_date: str = Form(...),
     end_date: str = Form(...),
@@ -190,8 +216,24 @@ def admin_create_task(
     ed = ddate.fromisoformat(end_date)
     assignee = int(assignee_id) if assignee_id.strip() else None
 
+    group_flag = (is_group is not None)
+    pid = int(parent_id) if parent_id.strip() else None
+
+    # если задача — общая, она не должна быть чьей-то подзадачей
+    if group_flag:
+        pid = None
+
+    # если задача — подзадача, родитель должен быть is_group=True
+    if pid:
+        parent = db.query(Task).filter(Task.id == pid).first()
+        if not parent or not parent.is_group:
+            raise HTTPException(400, detail="Parent must be a group task")
+
     t = Task(
         title=title.strip(),
+        description=(description or "").strip(),
+        is_group=group_flag,
+        parent_id=pid,
         assignee_id=assignee,
         start_date=sd,
         end_date=ed,
@@ -203,7 +245,36 @@ def admin_create_task(
     db.add(t)
     db.commit()
 
+    if pid:
+        recompute_group_progress(db, pid)
+        db.commit()
+
     return RedirectResponse(url="/admin", status_code=303)
+
+
+def recompute_group_progress(db: Session, group_task_id: int) -> None:
+    children = db.query(Task).filter(Task.parent_id == group_task_id, Task.is_group == False).all()
+    if not children:
+        grp = db.query(Task).filter(Task.id == group_task_id).first()
+        if grp:
+            grp.current_progress = 0
+            grp.status = "todo"
+        return
+
+    weights = [float(c.planned_hours or 0.0) for c in children]
+    total_w = sum(weights)
+    if total_w <= 0:
+        avg = sum(int(c.current_progress or 0) for c in children) / len(children)
+    else:
+        avg = sum((int(c.current_progress or 0) * w) for c, w in zip(children, weights)) / total_w
+
+    grp = db.query(Task).filter(Task.id == group_task_id).first()
+    if not grp:
+        return
+
+    grp.current_progress = int(round(avg))
+    grp.status = "done" if grp.current_progress >= 100 else ("in_progress" if grp.current_progress > 0 else "todo")
+
 
 
 # ---------- Employee day plan ----------
@@ -217,6 +288,7 @@ def day_view(request: Request, d: str | None = None, db: Session = Depends(get_d
     tasks = (
         db.query(Task)
         .filter(Task.assignee_id == user.id)
+        .filter(Task.is_group == False)
         .filter(Task.start_date <= the_date, Task.end_date >= the_date)
         .order_by(Task.priority.desc(), Task.end_date.asc())
         .all()
@@ -318,6 +390,8 @@ def day_log(
     # обновляем карточку задачи
     task.current_progress = final_progress
     task.status = "done" if done else ("in_progress" if final_progress > 0 else "todo")
+    if task.parent_id:
+        recompute_group_progress(db, task.parent_id)
 
     db.commit()
     return RedirectResponse(url=f"/day?d={the_date.isoformat()}", status_code=303)
