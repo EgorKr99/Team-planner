@@ -1,18 +1,30 @@
 {% extends "base.html" %}
+{% block title %}Вход{% endblock %}
+
 {% block content %}
-<h2>Вход</h2>
+<section class="card" style="max-width:520px;margin:0 auto;">
+  <h1 style="margin:0 0 10px 0;">Вход</h1>
 
-{% if error %}
-  <p style="color:#b91c1c;">{{ error }}</p>
-{% endif %}
+  {% if error %}
+    <div class="summary">
+      <div class="muted">{{ error }}</div>
+    </div>
+  {% endif %}
 
-<form method="post" action="/login" class="col" style="max-width:420px;">
-  <label>Логин</label>
-  <input name="login" required>
+  <form method="post" action="/login" class="form">
+    <div class="form-row">
+      <label for="login">Логин</label>
+      <input id="login" name="login" type="text" autocomplete="username" required>
+    </div>
 
-  <label>Пароль</label>
-  <input name="password" type="password" required>
+    <div class="form-row">
+      <label for="password">Пароль</label>
+      <input id="password" name="password" type="password" autocomplete="current-password" required>
+    </div>
 
-  <button type="submit">Войти</button>
-</form>
+    <div class="form-actions">
+      <button class="btn btn--primary" type="submit">Войти</button>
+    </div>
+  </form>
+</section>
 {% endblock %}

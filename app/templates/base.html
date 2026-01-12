@@ -3,37 +3,56 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{{ title or "Планирование" }}</title>
-  <link rel="stylesheet" href="/static/app.css">
+  <title>{% block title %}Team Planner{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', path='app.css') }}?v=3">
 </head>
 <body>
+  {% set role_ru = {'admin':'Администратор', 'employee':'Сотрудник', 'viewer':'Наблюдатель'} %}
+  {% set path = request.url.path %}
 
-{% if current %}
-<header class="topbar noprint">
-  <div class="topbar-inner">
-    <nav class="nav">
-      <a class="nav-link{% if request.url.path == '/day' %} active{% endif %}" href="/day">День</a>
-      <a class="nav-link{% if request.url.path == '/week' %} active{% endif %}" href="/week">Неделя</a>
-      {% if current.role in ("admin","viewer") %}
-        <a class="nav-link{% if request.url.path.startswith('/reports') %} active{% endif %}" href="/reports/daily?d={{ date.isoformat() if date else "" }}">Отчёты</a>
-      {% endif %}
-      {% if current.role == "admin" %}
-        <a class="nav-link{% if request.url.path == '/admin' %} active{% endif %}" href="/admin">Админка</a>
-      {% endif %}
-    </nav>
+  <div class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="/">Team Planner</a>
 
-    <div class="user-box">
-      <span class="user-name">{{ current.name }}</span>
-      <span class="user-role">{{ current.role }}</span>
-      <a class="logout" href="/logout">Выход</a>
+      {% if current is defined and current %}
+      <div class="nav">
+        <a class="nav-link{% if path == '/day' %} active{% endif %}"
+           href="/day{% if nav_date is defined and nav_date %}?d={{ nav_date.strftime('%d.%m.%y') }}{% endif %}">
+          День
+        </a>
+
+        <a class="nav-link{% if path == '/week' %} active{% endif %}"
+           href="/week{% if nav_date is defined and nav_date %}?d={{ nav_date.strftime('%d.%m.%y') }}{% endif %}">
+          Неделя
+        </a>
+
+        {% if current.role in ['admin','viewer'] %}
+        <a class="nav-link{% if path.startswith('/reports') %} active{% endif %}"
+           href="/reports/daily?d={{ (nav_date.strftime('%d.%m.%y') if nav_date is defined and nav_date else '') }}">
+          Отчёт
+        </a>
+        {% endif %}
+
+        {% if current.role == 'admin' %}
+        <a class="nav-link{% if path.startswith('/admin') %} active{% endif %}" href="/admin">
+          Админка
+        </a>
+        {% endif %}
+      </div>
+
+      <div class="user-box">
+        <span class="user-name">{{ current.name }} ({{ current.login }})</span>
+        <span class="user-role">{{ role_ru.get(current.role, current.role) }}</span>
+        <a class="logout" href="/logout">Выход</a>
+      </div>
+      {% endif %}
     </div>
   </div>
-</header>
-{% endif %}
 
-<main class="container">
-  {% block content %}{% endblock %}
-</main>
+  <main class="container">
+    {% block content %}{% endblock %}
+  </main>
 
+  {% block scripts %}{% endblock %}
 </body>
 </html>

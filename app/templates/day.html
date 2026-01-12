@@ -1,134 +1,96 @@
 {% extends "base.html" %}
+{% block title %}День{% endblock %}
+
 {% block content %}
+<section class="card">
+  <div class="card-head">
+    <div>
+      <h1 style="margin:0;">День</h1>
+      <div class="small">Ввод факта по задачам за выбранную дату</div>
+    </div>
 
-<h2>Дневной план: {{ user.name }}</h2>
+    <form method="get" action="/day" class="inline-form">
+      <label class="muted">Дата</label>
+      <input name="d" value="{{ date.strftime('%d.%m.%y') }}" placeholder="04.01.26" class="nowrap" style="max-width:140px;">
+      <button class="btn btn--ghost" type="submit">Открыть</button>
+    </form>
 
-<div class="row" style="justify-content: space-between; align-items: center;">
-  <form method="get" action="/day" class="row" style="gap: 10px; align-items: center;">
-    <label>Дата:</label>
-    <input type="date" name="d" value="{{ date }}">
-    <button type="submit">Показать</button>
-  </form>
-
-  <div class="muted">
-    <a href="/week?d={{ date }}">Открыть недельный план</a>
+    <div class="muted">Итого: <strong>{{ "%.1f"|format(day_total or 0) }}</strong> ч</div>
   </div>
-</div>
 
-<p class="summary">
-  <b>Итого часов за {{ date }}:</b> {{ "%.2f"|format(day_total) }}
-</p>
+  <div class="table-wrap dayform" style="margin-top:10px;">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Задача</th>
+          <th class="nowrap">План/Факт (всего)</th>
+          <th class="nowrap">Сегодня, ч</th>
+          <th>Комментарий</th>
+          <th class="nowrap">Прогресс, %</th>
+          <th class="nowrap">Готово</th>
+          <th class="nowrap"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for t in tasks %}
+          {% set wl = log_by_task.get(t.id) %}
+          {% set st = stats.get(t.id) %}
+          {% set planned = (st.planned if st else 0) %}
+          {% set actual = (st.actual if st else 0) %}
 
-<p class="muted">
-  “Ввод за дату” относится к выбранной дате. “Факт (всего)” — сумма часов по задаче за все дни.
-</p>
+          <tr>
+            <td>{{ t.title }}</td>
 
-{% if not tasks %}
-  <p class="muted">На выбранную дату задач нет.</p>
-{% else %}
-<table class="tbl">
-  <thead>
-    <tr>
-      <th>Задача</th>
-      <th class="num">План, ч</th>
-      <th class="num">Факт, ч (всего)</th>
-      <th>Дедлайн</th>
-      <th class="num">Прогресс</th>
-      <th class="num">Часы (за дату)</th>
-      <th>Результат (за дату)</th>
-      <th class="num">Прогресс на конец дня</th>
-      <th>Готово</th>
-      <th></th>
-    </tr>
-  </thead>
+            <td class="muted nowrap">
+              {{ "%.1f"|format(planned or 0) }} / {{ "%.1f"|format(actual or 0) }}
+            </td>
 
-  <tbody>
-  {% for t in tasks %}
-    {% set planned = stats[t.id]["planned"] %}
-    {% set actual = stats[t.id]["actual"] %}
-    {% set is_done = (t.status == "done") or (t.current_progress >= 100) %}
-    {% set is_overdue = (t.end_date < date) and (not is_done) %}
-    {% set wl = log_by_task.get(t.id) %}
+            <td>
+              <input form="log-{{ t.id }}"
+                     name="hours"
+                     type="number"
+                     step="0.5"
+                     min="0"
+                     value="{{ wl.hours if wl else 0 }}"
+                     class="hours-input">
+            </td>
 
-    {% if is_done %}
-      {% set cls = "ok" if actual <= planned else "bad" %}
-    {% elif is_overdue %}
-      {% set cls = "overdue" %}
-    {% else %}
-      {% set cls = "mid" %}
-    {% endif %}
+            <td>
+              <input form="log-{{ t.id }}"
+                     name="comment"
+                     value="{{ wl.comment if wl else '' }}"
+                     placeholder="что сделал(а)"
+                     class="comment-input">
+            </td>
 
-    <tr class="{{ cls }}">
-      <td class="task">
-        <div class="task-title">{{ t.title }}</div>
-      </td>
+            <td>
+              <input form="log-{{ t.id }}"
+                     name="progress"
+                     type="number"
+                     min="0"
+                     max="100"
+                     value="{{ wl.progress if wl else (t.current_progress or 0) }}"
+                     class="prog-input">
+            </td>
 
-      <td class="num">{{ "%.2f"|format(planned) }}</td>
-      <td class="num">{{ "%.2f"|format(actual) }}</td>
-      <td class="small">{{ t.end_date }}</td>
-      <td class="num">{{ t.current_progress }}%</td>
+            <td style="text-align:center;">
+              <input form="log-{{ t.id }}"
+                     type="checkbox"
+                     name="is_done"
+                     {% if wl and wl.is_done %}checked{% endif %}>
+            </td>
 
-      <td colspan="5">
-        <form method="post" action="/day/log" class="row dayform" style="gap: 8px; align-items: center;">
-          <input type="hidden" name="d" value="{{ date }}">
-          <input type="hidden" name="task_id" value="{{ t.id }}">
-
-          <div class="hoursbox">
-            <input class="hours-input" type="number" step="0.25" min="0" name="hours" placeholder="часы"
-                   value="{{ '%.2f'|format(wl.hours) if wl else '' }}">
-            <div class="quick">
-              <button type="button" class="qbtn" onclick="incHours(this, 0.5)">+0.5</button>
-              <button type="button" class="qbtn" onclick="incHours(this, 1)">+1</button>
-              <button type="button" class="qbtn" onclick="incHours(this, 2)">+2</button>
-            </div>
-          </div>
-
-          <input class="comment-input" type="text" name="comment" placeholder="краткий результат"
-                 value="{{ wl.comment if wl else '' }}">
-
-          <input class="prog-input" type="number" min="0" max="100" name="progress" placeholder="%"
-                 value="{{ wl.progress if wl else t.current_progress }}">
-
-          <label class="nowrap">
-            <input type="checkbox" name="is_done" {% if wl and wl.is_done %}checked{% endif %}>
-            Готово
-          </label>
-
-          <button type="submit">Сохранить</button>
-        </form>
-      </td>
-    </tr>
-
-    {% if wl %}
-    <tr class="subrow">
-      <td colspan="10" class="muted">
-        Уже внесено за {{ date }}:
-        <b>{{ "%.2f"|format(wl.hours or 0) }} ч</b>,
-        <b>{{ wl.progress }}%</b>
-        {% if wl.comment %}— {{ wl.comment }}{% endif %}
-        (повторное сохранение перезапишет запись)
-      </td>
-    </tr>
-    {% endif %}
-
-  {% endfor %}
-  </tbody>
-</table>
-
-<p class="muted">
-  Подсветка: зелёный/красный — только для завершённых задач (в пределах плана / перерасход).
-  Жёлтый — просрочено и не завершено.
-</p>
-{% endif %}
-
-<script>
-function incHours(btn, delta) {
-  const form = btn.closest("form");
-  const inp = form.querySelector(".hours-input");
-  const v = parseFloat(inp.value || "0");
-  inp.value = (v + delta).toFixed(2);
-  inp.focus();
-}
-</script>
-
+            <td class="td-actions">
+              <form id="log-{{ t.id }}" method="post" action="/day/log" class="inline-form">
+                <input type="hidden" name="d" value="{{ date.strftime('%d.%m.%y') }}">
+                <input type="hidden" name="task_id" value="{{ t.id }}">
+                <button class="btn btn--primary" type="submit">Сохранить</button>
+              </form>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
 {% endblock %}

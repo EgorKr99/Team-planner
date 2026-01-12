@@ -8,16 +8,51 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from datetime import date, timedelta
-
+from pathlib import Path
 from .db import Base, engine, get_db
 from .models import User, Task, Worklog
 from .services import week_start, daterange, actual_hours_for_task, actual_hours_for_user_day
+from datetime import date as ddate
+from datetime import datetime
+import re
+
 
 Base.metadata.create_all(bind=engine)
 
+BASE_DIR = Path(__file__).resolve().parent          # .../app
 app = FastAPI()
-app.mount("/static", StaticFiles(directory="app/static"), name="static")
-templates = Jinja2Templates(directory="app/templates")
+app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
+templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
+
+
+def base_ctx(request: Request, current, nav_date=None):
+    return {
+        "request": request,
+        "current": current,
+        "nav_date": nav_date or ddate.today(),
+        "title": None,
+    }
+
+def parse_date_any(s: str) -> date:
+    s = (s or "").strip()
+    if not s:
+        raise HTTPException(status_code=400, detail="Missing date")
+    # ISO: 2026-01-04
+    try:
+        return date.fromisoformat(s)
+    except ValueError:
+        pass
+    # RU: 04.01.26 или 04.01.2026
+    for fmt in ("%d.%m.%y", "%d.%m.%Y"):
+        try:
+            return datetime.strptime(s, fmt).date()
+        except ValueError:
+            continue
+    raise HTTPException(status_code=400, detail="Bad date format. Use YYYY-MM-DD or DD.MM.YY")
+
+def fmt_ddmmyy(d: date) -> str:
+    return d.strftime("%d.%m.%y")
+
 
 @app.get("/login", response_class=HTMLResponse)
 def login_get(request: Request):
@@ -119,15 +154,15 @@ def admin_view(request: Request, db: Session = Depends(get_db)):
                 task_rows.append((k, 1))  # level 1
 
     user_map = {u.id: u for u in users}
-    return templates.TemplateResponse("admin.html", {
-        "request": request,
+    ctx = base_ctx(request, admin, nav_date=date.today())
+    ctx.update({
         "admin": admin,
-        "current": admin,
         "users": users,
         "group_tasks": group_tasks,
         "task_rows": task_rows,
         "user_map": user_map,
     })
+    return templates.TemplateResponse("admin.html", ctx)
 
 @app.post("/admin/users/create")
 def admin_create_user(
@@ -211,8 +246,8 @@ def admin_create_task(
     require_role(admin, {"admin"})
 
     from datetime import date as ddate
-    sd = ddate.fromisoformat(start_date)
-    ed = ddate.fromisoformat(end_date)
+    sd = parse_date_any(start_date)
+    ed = parse_date_any(end_date)
     assignee = int(assignee_id) if assignee_id.strip() else None
 
     group_flag = (is_group is not None)
@@ -275,6 +310,204 @@ def recompute_group_progress(db: Session, group_task_id: int) -> None:
     grp.status = "done" if grp.current_progress >= 100 else ("in_progress" if grp.current_progress > 0 else "todo")
 
 
+# ---------- Task edit ----------
+
+def parse_any_date(s: str) -> ddate:
+    """
+    Принимает:
+      - YYYY-MM-DD (из <input type="date">)
+      - DD.MM.YY
+      - DD.MM.YYYY
+    """
+    s = (s or "").strip()
+    if not s:
+        raise ValueError("empty date")
+    try:
+        return ddate.fromisoformat(s)
+    except Exception:
+        pass
+
+    m = re.match(r"^(\d{2})\.(\d{2})\.(\d{2}|\d{4})$", s)
+    if not m:
+        raise ValueError("bad date format")
+
+    dd, mm, yy = m.groups()
+    year = int(yy)
+    if year < 100:
+        year += 2000
+    return ddate(year, int(mm), int(dd))
+
+
+@app.post("/admin/tasks/update")
+def admin_update_task(
+        request: Request,
+        task_id: int = Form(...),
+
+        title: str = Form(...),
+        description: str = Form(""),
+
+        assignee_id: str = Form(""),
+        start_date: str = Form(...),
+        end_date: str = Form(...),
+
+        planned_hours: float = Form(0.0),
+        priority: int = Form(3),
+
+        status: str = Form("todo"),
+        current_progress: int = Form(0),
+
+        is_group: str | None = Form(None),
+        parent_id: str = Form(""),
+
+        db: Session = Depends(get_db),
+):
+    admin = get_current_user(request, db)
+    require_role(admin, {"admin"})
+
+    t = db.query(Task).filter(Task.id == task_id).first()
+    if not t:
+        raise HTTPException(404, detail="Task not found")
+
+    old_parent = t.parent_id
+    old_is_group = bool(t.is_group)
+
+    # parse dates
+    try:
+        sd = parse_any_date(start_date)
+        ed = parse_any_date(end_date)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Bad date format")
+
+    if ed < sd:
+        raise HTTPException(status_code=400, detail="End date must be >= start date")
+
+    # assignee
+    assignee = int(assignee_id) if (assignee_id or "").strip() else None
+
+    # group / parent rules
+    group_flag = (is_group is not None)
+    pid = int(parent_id) if (parent_id or "").strip() else None
+
+    # normalize status/progress
+    try:
+        prog = int(current_progress)
+    except Exception:
+        prog = 0
+    prog = max(0, min(100, prog))
+
+    status = (status or "todo").strip().lower()
+    allowed_status = {"todo", "in_progress", "done"}
+    if status not in allowed_status:
+        status = "todo"
+
+    # if group -> no parent; progress/status computed
+    if group_flag:
+        pid = None
+        # если задача раньше была подзадачей — отвязываем
+        t.parent_id = None
+    else:
+        # если указан parent_id — он должен быть группой
+        if pid:
+            if pid == t.id:
+                raise HTTPException(400, detail="Task cannot be parent of itself")
+            parent = db.query(Task).filter(Task.id == pid).first()
+            if not parent or not parent.is_group:
+                raise HTTPException(400, detail="Parent must be a group task")
+
+    # если снимаем флаг группы, а у задачи есть дети — отвяжем детей (чтобы не ломать структуру)
+    if old_is_group and (not group_flag):
+        children = db.query(Task).filter(Task.parent_id == t.id).all()
+        for ch in children:
+            ch.parent_id = None
+
+    # apply changes
+    t.title = title.strip()
+    t.description = (description or "").strip()
+
+    t.assignee_id = assignee
+    t.start_date = sd
+    t.end_date = ed
+
+    t.planned_hours = float(planned_hours or 0.0)
+    t.priority = int(priority or 3)
+
+    t.is_group = group_flag
+    t.parent_id = pid
+
+    if group_flag:
+        # прогресс/статус пересчитаем от детей
+        recompute_group_progress(db, t.id)
+    else:
+        # согласуем статус и прогресс
+        if status == "done":
+            prog = 100
+        elif prog == 100:
+            status = "done"
+        elif prog > 0 and status == "todo":
+            status = "in_progress"
+
+        t.current_progress = prog
+        t.status = status
+
+        # если у подзадачи есть родитель — пересчитаем
+        if t.parent_id:
+            recompute_group_progress(db, t.parent_id)
+
+    db.commit()
+
+    # если поменяли родителя — пересчитать и старого, и нового
+    if old_parent and old_parent != t.parent_id:
+        recompute_group_progress(db, old_parent)
+        db.commit()
+
+    return RedirectResponse(url="/admin", status_code=303)
+
+
+# ---------- Task delete ----------
+
+@app.post("/admin/tasks/delete")
+def admin_delete_task(
+        request: Request,
+        task_id: int = Form(...),
+        db: Session = Depends(get_db),
+):
+    admin = get_current_user(request, db)
+    require_role(admin, {"admin"})
+
+    t = db.query(Task).filter(Task.id == task_id).first()
+    if not t:
+        return RedirectResponse(url="/admin", status_code=303)
+
+    parent_id = t.parent_id
+
+    # Собираем subtree (если удаляем группу — удаляем и все подзадачи/внуков)
+    ids_to_delete = []
+    queue = [task_id]
+    seen = set()
+
+    while queue:
+        cur = queue.pop(0)
+        if cur in seen:
+            continue
+        seen.add(cur)
+        ids_to_delete.append(cur)
+
+        child_ids = db.query(Task.id).filter(Task.parent_id == cur).all()
+        queue.extend([cid for (cid,) in child_ids])
+
+    # Удаляем сначала логи, потом задачи
+    db.query(Worklog).filter(Worklog.task_id.in_(ids_to_delete)).delete(synchronize_session=False)
+    db.query(Task).filter(Task.id.in_(ids_to_delete)).delete(synchronize_session=False)
+    db.commit()
+
+    # Если удаляли подзадачу — пересчитаем прогресс у группы-родителя
+    if parent_id and parent_id not in ids_to_delete:
+        recompute_group_progress(db, parent_id)
+        db.commit()
+
+    return RedirectResponse(url="/admin", status_code=303)
+
+
 
 # ---------- Employee day plan ----------
 @app.get("/day", response_class=HTMLResponse)
@@ -282,7 +515,7 @@ def day_view(request: Request, d: str | None = None, db: Session = Depends(get_d
     user = get_current_user(request, db)
     require_role(user, {"admin", "employee"})
 
-    the_date = date.fromisoformat(d) if d else date.today()
+    the_date = parse_date_any(d) if d else date.today()
 
     tasks = (
         db.query(Task)
@@ -312,16 +545,16 @@ def day_view(request: Request, d: str | None = None, db: Session = Depends(get_d
         .scalar() or 0.0
     )
 
-    return templates.TemplateResponse("day.html", {
-        "request": request,
+    ctx = base_ctx(request, user, nav_date=the_date)
+    ctx.update({
         "user": user,
-        "current": user,
         "date": the_date,
         "tasks": tasks,
         "stats": stats,
         "log_by_task": log_by_task,
         "day_total": day_total,
     })
+    return templates.TemplateResponse("day.html", ctx)
 
 
 @app.post("/day/log")
@@ -338,7 +571,7 @@ def day_log(
     user = get_current_user(request, db)
     require_role(user, {"admin", "employee"})
 
-    the_date = date.fromisoformat(d)
+    the_date = parse_date_any(d)
 
     # clamp progress
     try:
@@ -355,7 +588,7 @@ def day_log(
 
     # если всё пусто — просто вернуться
     if h <= 0 and not c and final_progress == 0 and not done:
-        return RedirectResponse(url=f"/day?d={the_date.isoformat()}", status_code=303)
+        return RedirectResponse(url=f"/day?d={fmt_ddmmyy(the_date)}", status_code=303)
 
     # защита: нельзя логировать чужую задачу
     task = db.query(Task).filter(Task.id == task_id, Task.assignee_id == user.id).first()
@@ -393,7 +626,7 @@ def day_log(
         recompute_group_progress(db, task.parent_id)
 
     db.commit()
-    return RedirectResponse(url=f"/day?d={the_date.isoformat()}", status_code=303)
+    return RedirectResponse(url=f"/day?d={fmt_ddmmyy(the_date)}", status_code=303)
 
 
 # ---------- Week plan ----------
@@ -403,7 +636,7 @@ def week_view(request: Request, d: str | None = None, db: Session = Depends(get_
     user_map = {u.id: u for u in db.query(User).all()}
     require_role(user, {"admin", "employee", "viewer"})
 
-    the_date = date.fromisoformat(d) if d else date.today()
+    the_date = parse_date_any(d) if d else date.today()
     ws = week_start(the_date)
     days = list(daterange(ws, 7))
 
@@ -416,18 +649,18 @@ def week_view(request: Request, d: str | None = None, db: Session = Depends(get_
         for day in days:
             load[u.id][day]["actual"] = actual_hours_for_user_day(db, u.id, day)
 
-    return templates.TemplateResponse("week.html", {
-        "request": request,
+    ctx = base_ctx(request, user, nav_date=the_date)
+    ctx.update({
         "user": user,
-        "current": user,
         "date": the_date,
         "week_start": ws,
         "days": days,
         "tasks": tasks,
         "users": users,
         "load": load,
-        "user_map": user_map,  # <-- добавили
+        "user_map": user_map,
     })
+    return templates.TemplateResponse("week.html", ctx)
 
 
 # ---------- Reports ----------
@@ -436,7 +669,7 @@ def report_daily(request: Request, d: str, db: Session = Depends(get_db)):
     user = get_current_user(request, db)
     require_role(user, {"admin", "viewer"})
 
-    the_date = date.fromisoformat(d)
+    the_date = parse_date_any(d)
 
     users = db.query(User).filter(
         User.role.in_(("admin","employee")),
@@ -454,12 +687,13 @@ def report_daily(request: Request, d: str, db: Session = Depends(get_db)):
         if wl.user_id in logs_by_user:
             logs_by_user[wl.user_id].append((wl, task_map.get(wl.task_id)))
 
-    return templates.TemplateResponse("report_daily.html", {
-        "request": request,
-        "current": user,
+    ctx = base_ctx(request, user, nav_date=the_date)
+    ctx.update({
         "date": the_date,
         "users": users,
         "logs_by_user": logs_by_user,
-        "viewer": user,   # если в шаблоне ждёшь viewer
+        "viewer": user,
     })
+    return templates.TemplateResponse("report_daily.html", ctx)
+
 

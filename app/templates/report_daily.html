@@ -1,30 +1,52 @@
 {% extends "base.html" %}
-{% block content %}
-<div class="noprint row">
-  <h2 style="margin:0;">Отчёт за {{ date }}</h2>
-  <button onclick="window.print()">Печать</button>
-</div>
+{% block title %}Отчёт за день{% endblock %}
 
-{% for u in users %}
-  <h3>{{ u.name }}</h3>
-  <table>
-    <thead>
-      <tr><th>Задача</th><th>Часы</th><th>Прогресс</th><th>Комментарий</th></tr>
-    </thead>
-    <tbody>
-      {% for wl, t in logs_by_user[u.id] %}
-        <tr>
-          <td>{{ t.title if t else ("Task #" ~ wl.task_id) }}</td>
-          <td>{{ "%.2f"|format(wl.hours or 0) }}</td>
-          <td>{{ wl.progress }}%</td>
-          <td>{{ wl.comment }}</td>
-        </tr>
-      {% endfor %}
-      {% if logs_by_user[u.id]|length == 0 %}
-        <tr><td colspan="4">Нет записей</td></tr>
-      {% endif %}
-    </tbody>
-  </table>
-  <div class="pagebreak"></div>
-{% endfor %}
+{% block content %}
+<section class="card">
+  <div class="card-head">
+    <div>
+      <h1 style="margin:0;">Отчёт за день</h1>
+      <div class="small">Список внесённых логов по сотрудникам</div>
+    </div>
+
+    <form method="get" action="/reports/daily" class="inline-form">
+      <label class="muted">Дата</label>
+      <input name="d" value="{{ date.strftime('%d.%m.%y') }}" placeholder="04.01.26" style="max-width:140px;">
+      <button class="btn btn--ghost" type="submit">Показать</button>
+    </form>
+  </div>
+
+  {% for u in users %}
+    <div class="summary">
+      <h2 style="margin:0;">{{ u.name }} ({{ u.login }})</h2>
+    </div>
+
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Задача</th>
+            <th class="nowrap">Часы</th>
+            <th class="nowrap">Прогресс</th>
+            <th>Комментарий</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for wl, t in logs_by_user[u.id] %}
+          <tr>
+            <td>{{ t.title if t else ("#"+wl.task_id|string) }}</td>
+            <td class="num">{{ "%.1f"|format(wl.hours or 0) }}</td>
+            <td class="num">{{ wl.progress or 0 }}%</td>
+            <td>{{ wl.comment or "" }}</td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="4" class="muted">Нет записей</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endfor %}
+</section>
 {% endblock %}

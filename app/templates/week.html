@@ -1,58 +1,52 @@
 {% extends "base.html" %}
+{% block title %}Неделя{% endblock %}
+
 {% block content %}
-<h2>Недельный план (общий обзор)</h2>
+<section class="card">
+  <div class="card-head">
+    <div>
+      <h1 style="margin:0;">Неделя</h1>
+      <div class="small">Свод по факту (часы) по дням недели</div>
+    </div>
 
-<form method="get" action="/week" class="row">
-  <label>Дата:</label>
-  <input type="date" name="d" value="{{ date }}">
-  <button type="submit">Показать неделю</button>
-</form>
+    <form method="get" action="/week" class="inline-form">
+      <label class="muted">Любая дата недели</label>
+      <input name="d" value="{{ date.strftime('%d.%m.%y') }}" placeholder="04.01.26" style="max-width:160px;">
+      <button class="btn btn--ghost" type="submit">Открыть</button>
+    </form>
 
-<h3>Факт по дням (часы)</h3>
-<table>
-  <thead>
-    <tr>
-      <th>Сотрудник</th>
-      {% for day in days %}
-        <th class="small">{{ day }}</th>
-      {% endfor %}
-    </tr>
-  </thead>
-  <tbody>
-    {% for u in users %}
-      <tr>
-        <td>{{ u.name }}</td>
-        {% for day in days %}
-          <td>{{ "%.2f"|format(load[u.id][day]["actual"]) }}</td>
+    <div class="muted">Неделя с: <strong>{{ week_start.strftime('%d.%m.%y') }}</strong></div>
+  </div>
+
+  <div class="table-wrap" style="margin-top:10px;">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Сотрудник</th>
+          {% for day in days %}
+            <th class="nowrap">
+              {{ day.strftime('%a') }}<br>
+              <span class="small">{{ day.strftime('%d.%m.%y') }}</span>
+            </th>
+          {% endfor %}
+          <th class="nowrap">Итого</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in users %}
+          {% set total = 0 %}
+          <tr>
+            <td class="nowrap">{{ u.name }} ({{ u.login }})</td>
+            {% for day in days %}
+              {% set v = load[u.id][day]["actual"] %}
+              {% set total = total + v %}
+              <td class="num">{{ "%.1f"|format(v) }}</td>
+            {% endfor %}
+            <td class="num"><strong>{{ "%.1f"|format(total) }}</strong></td>
+          </tr>
         {% endfor %}
-      </tr>
-    {% endfor %}
-  </tbody>
-</table>
-
-<h3>Список задач</h3>
-<table>
-  <thead>
-    <tr><th>ID</th><th>Задача</th><th>Исполнитель</th><th>Даты</th><th>План</th><th>Прогресс</th><th>Статус</th></tr>
-  </thead>
-  <tbody>
-  {% for t in tasks %}
-    <tr>
-      <td>{{ t.id }}</td>
-      <td>{{ t.title }}</td>
-      <td>
-        {% if t.assignee_id %}
-            {{ user_map[t.assignee_id].name if t.assignee_id in user_map else "-" }}
-        {% else %}
-            -
-        {% endif %}
-      </td>
-      <td class="small">{{ t.start_date }} → {{ t.end_date }}</td>
-      <td>{{ "%.2f"|format(t.planned_hours or 0) }}</td>
-      <td>{{ t.current_progress }}%</td>
-      <td>{{ t.status }}</td>
-    </tr>
-  {% endfor %}
-  </tbody>
-</table>
+      </tbody>
+    </table>
+  </div>
+</section>
 {% endblock %}
