@@ -92,6 +92,10 @@ a {
   flex-wrap: wrap;
 }
 
+.section-title {
+  margin: 0;
+}
+
 /* ==========================================================================
    Forms
    ========================================================================== */
@@ -106,6 +110,15 @@ a {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
+}
+
+.form-actions--split {
+  justify-content: space-between;
+  align-items: center;
+}
+
+.form--spaced {
+  margin-top: 10px;
 }
 
 .inline-form {
@@ -179,6 +192,54 @@ textarea {
   }
   .field label {
     margin-bottom: 4px;
+  }
+}
+
+/* ==========================================================================
+   Admin
+   ========================================================================== */
+
+.admin {
+  display: grid;
+  gap: 16px;
+}
+
+.admin__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.admin__title {
+  margin: 0;
+}
+
+.admin__subtitle {
+  margin-top: 4px;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.admin__grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.admin__tasks {
+  margin-top: 2px;
+}
+
+.filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+@media (max-width: 980px) {
+  .admin__grid {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -259,12 +320,14 @@ textarea {
   vertical-align: top;
   overflow: hidden;
   text-overflow: ellipsis;
+  word-break: break-word;
 }
 
 .table th {
   background: #f3f4f6;
   text-align: left;
   font-weight: 600;
+  white-space: nowrap;
 }
 
 .summary {
@@ -279,6 +342,19 @@ textarea {
 #tasksTable th:nth-child(2),
 #tasksTable td:nth-child(2) {
   width: 34%;
+}
+
+.table--compact th,
+.table--compact td {
+  padding: 8px 10px;
+}
+
+.table--admin td {
+  vertical-align: middle;
+}
+
+.table-wrap--spaced {
+  margin-top: 12px;
 }
 
 /* Подзадачи */
