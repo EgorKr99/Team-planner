@@ -349,6 +349,22 @@ textarea {
   padding: 8px 10px;
 }
 
+.table--scroll {
+  width: max-content;
+  min-width: 100%;
+  table-layout: auto;
+}
+
+.table--scroll th,
+.table--scroll td {
+  white-space: nowrap;
+  word-break: normal;
+}
+
+.table--scroll td.desc-cell {
+  white-space: normal;
+}
+
 .table--admin td {
   vertical-align: middle;
 }

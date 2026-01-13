@@ -60,7 +60,7 @@
             </form>
 
             <div class="table-wrap table-wrap--spaced">
-                <table class="table table--compact">
+                <table class="table table--compact table--scroll">
                     <colgroup>
                         <col style="width: 28%">
                         <col style="width: 24%">
@@ -245,9 +245,11 @@
                         <label>Тип</label>
                         <div class="control">
                             <div class="filter-chips">
-                                <label class="checkbox"><input type="checkbox" id="flt_only_groups"> Только группы</label>
+                                <label class="checkbox"><input type="checkbox" id="flt_only_groups"> Только
+                                    группы</label>
                                 <label class="checkbox"><input type="checkbox" id="flt_only_children"> Только подзадачи</label>
-                                <label class="checkbox"><input type="checkbox" id="flt_only_root"> Только без родителя</label>
+                                <label class="checkbox"><input type="checkbox" id="flt_only_root"> Только без
+                                    родителя</label>
                             </div>
                         </div>
                     </div>
@@ -262,7 +264,7 @@
 
 
         <div class="table-wrap table-wrap--spaced">
-            <table class="table table--admin" id="tasksTable">
+            <table class="table table--admin table--scroll" id="tasksTable">
                 <colgroup>
                     <col style="width: 18%">
                     <col style="width: 28%">
@@ -297,6 +299,7 @@
                     data-level="{{ level }}"
                     data-status="{{ (t.status or '')|lower }}"
                     data-title="{{ t.title|lower|e }}"
+                    data-desc="{{ (t.description or '')|lower|e }}"
                     data-assignee="{{ (ass.name|lower|e) if ass else '' }}"
                     data-start="{{ t.start_date.strftime('%Y-%m-%d') }}"
                     data-end="{{ t.end_date.strftime('%Y-%m-%d') }}"
@@ -362,16 +365,72 @@
     // ===== Hide completed =====
     const hideCompleted = document.getElementById('hideCompleted');
     const taskRows = Array.from(document.querySelectorAll('#tasksTable tbody .task-row'));
+    const searchInput = document.getElementById('flt_q');
+    const statusSelect = document.getElementById('flt_status');
+    const assigneeSelect = document.getElementById('flt_assignee');
+    const onlyGroups = document.getElementById('flt_only_groups');
+    const onlyChildren = document.getElementById('flt_only_children');
+    const onlyRoot = document.getElementById('flt_only_root');
+    const filterReset = document.getElementById('flt_reset');
+    const filterHint = document.getElementById('flt_hint');
 
     function applyHideCompleted() {
         const hide = hideCompleted && hideCompleted.checked;
         taskRows.forEach(r => {
             const st = (r.dataset.status || '').toLowerCase();
-            r.style.display = (hide && st === 'done') ? 'none' : '';
+            if (hide && st === 'done') {
+                r.dataset.hiddenCompleted = '1';
+            } else {
+                delete r.dataset.hiddenCompleted;
+            }
         });
     }
 
     if (hideCompleted) hideCompleted.addEventListener('change', applyHideCompleted);
+
+    function applyFilters() {
+        const query = (searchInput?.value || '').trim().toLowerCase();
+        const status = (statusSelect?.value || '').trim().toLowerCase();
+        const assignee = (assigneeSelect?.value || '').trim().toLowerCase();
+        const groupsOnly = !!onlyGroups?.checked;
+        const childrenOnly = !!onlyChildren?.checked;
+        const rootOnly = !!onlyRoot?.checked;
+
+        let visibleCount = 0;
+        taskRows.forEach(row => {
+            const title = row.dataset.title || '';
+            const desc = row.dataset.desc || '';
+            const rowAssignee = row.dataset.assignee || '';
+            const rowStatus = (row.dataset.status || '').toLowerCase();
+            const isGroup = row.dataset.isGroup === '1';
+            const parentId = row.dataset.parentId || '';
+
+            let ok = true;
+            if (query) {
+                const haystack = `${title} ${desc} ${rowAssignee}`.trim();
+                ok = haystack.includes(query);
+            }
+
+            if (ok && status) ok = rowStatus === status;
+            if (ok && assignee) ok = rowAssignee === assignee;
+            if (ok && groupsOnly) ok = isGroup;
+            if (ok && childrenOnly) ok = !!parentId;
+            if (ok && rootOnly) ok = !parentId;
+            if (ok && row.dataset.hiddenCompleted === '1') ok = false;
+
+            row.style.display = ok ? '' : 'none';
+            if (ok) visibleCount += 1;
+        });
+
+        if (filterHint) {
+            filterHint.textContent = `Показано: ${visibleCount}`;
+        }
+    }
+
+    function applyFiltersWithCompleted() {
+        applyHideCompleted();
+        applyFilters();
+    }
 
     // ===== Popover (hard-styled via JS: works even if CSS is cached/old) =====
     const pop = document.createElement('div');
@@ -398,68 +457,15 @@
   `;
 
     document.body.appendChild(pop);
-
-    const popCard = pop.querySelector('.desc-pop__card');
-    const popHead = pop.querySelector('.desc-pop__head');
-    const popTitle = pop.querySelector('.desc-pop__title');
-    const popBody = pop.querySelector('.desc-pop__body');
-    const popClose = pop.querySelector('.desc-pop__close');
-
-    // hard head styles
-    popHead.style.display = 'flex';
-    popHead.style.alignItems = 'center';
-    popHead.style.justifyContent = 'space-between';
-    popHead.style.gap = '12px';
-    popHead.style.padding = '10px 12px';
-    popHead.style.borderBottom = '1px solid rgba(0,0,0,0.08)';
-
-    // title bold
-    popTitle.style.fontWeight = '700';
-    popTitle.style.color = '#111827';
-
-    // close button styles (right aligned)
-    popClose.style.border = '1px solid rgba(0,0,0,0.12)';
-    popClose.style.background = '#ffffff';
-    popClose.style.borderRadius = '10px';
-    popClose.style.padding = '6px 10px';
-    popClose.style.cursor = 'pointer';
-    popClose.style.whiteSpace = 'nowrap';
-
-    popClose.addEventListener('mouseenter', () => {
-        popClose.style.background = '#f3f4f6';
-    });
-    popClose.addEventListener('mouseleave', () => {
-        popClose.style.background = '#ffffff';
-    });
-
-    // hard card styles
-    popCard.style.width = 'min(720px, calc(100vw - 24px))';
-    popCard.style.maxHeight = 'min(70vh, 560px)';
-    popCard.style.overflow = 'hidden';
-    popCard.style.background = '#fff';
-    popCard.style.borderRadius = '14px';
-    popCard.style.boxShadow = '0 20px 60px rgba(0,0,0,0.25)';
-
-    // body styles
-    popBody.style.padding = '12px';
-    popBody.style.whiteSpace = 'pre-wrap';
-    popBody.style.overflow = 'auto';
-    popBody.style.maxHeight = 'calc(70vh - 52px)';
-
-    function openPop(text) {
-        popBody.textContent = text || '';
-        pop.style.display = 'flex';
-    }
-
-    function closePop() {
-        pop.style.display = 'none';
-    }
-
-    popClose.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        closePop();
-    });
+    @@
+    -428, 51 + 515, 72
+    @@
+        popClose.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            closePop();
+        })
+    ;
 
     pop.addEventListener('click', (e) => {
         if (e.target === pop) closePop();
@@ -480,7 +486,28 @@
         });
     });
 
-    applyHideCompleted();
+    if (searchInput) searchInput.addEventListener('input', applyFiltersWithCompleted);
+    if (statusSelect) statusSelect.addEventListener('change', applyFiltersWithCompleted);
+    if (assigneeSelect) assigneeSelect.addEventListener('change', applyFiltersWithCompleted);
+    if (onlyGroups) onlyGroups.addEventListener('change', applyFiltersWithCompleted);
+    if (onlyChildren) onlyChildren.addEventListener('change', applyFiltersWithCompleted);
+    if (onlyRoot) onlyRoot.addEventListener('change', applyFiltersWithCompleted);
+    if (hideCompleted) hideCompleted.addEventListener('change', applyFiltersWithCompleted);
+
+    if (filterReset) {
+        filterReset.addEventListener('click', () => {
+            if (searchInput) searchInput.value = '';
+            if (statusSelect) statusSelect.value = '';
+            if (assigneeSelect) assigneeSelect.value = '';
+            if (onlyGroups) onlyGroups.checked = false;
+            if (onlyChildren) onlyChildren.checked = false;
+            if (onlyRoot) onlyRoot.checked = false;
+            if (hideCompleted) hideCompleted.checked = false;
+            applyFiltersWithCompleted();
+        });
+    }
+
+    applyFiltersWithCompleted();
 
     // ===== Edit Task Modal =====
     const editPop = document.createElement('div');
