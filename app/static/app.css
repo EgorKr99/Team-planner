@@ -303,7 +303,9 @@ textarea {
    ========================================================================== */
 
 .table-wrap {
-  overflow: auto;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
 }
 
 .table {

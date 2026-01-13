@@ -292,6 +292,8 @@
                 <tbody>
                 {% for t, level in task_rows %}
                 {% set ass = user_map.get(t.assignee_id) if t.assignee_id else None %}
+                {% set desc = t.description or '' %}
+                {% set short_desc = desc if desc|length <= 30 else desc[:27] ~ '...' %}
                 <tr class="task-row {% if t.is_group %}task-group{% elif level == 1 %}task-child{% endif %}"
                     data-task-id="{{ t.id }}"
                     data-parent-id="{{ t.parent_id or '' }}"
@@ -309,8 +311,8 @@
                         {% if t.is_group %}<strong>{{ t.title }}</strong>{% else %}{{ t.title }}{% endif %}
                     </td>
 
-                    <td class="desc-cell" data-full="{{ (t.description or '')|e }}">
-                        <span class="desc-clamp">{{ t.description or "" }}</span>
+                    <td class="desc-cell" data-full="{{ desc|e }}">
+                        <span class="desc-clamp">{{ short_desc|e }}</span>
                         <button type="button" class="desc-open" aria-label="Открыть описание">↗</button>
                     </td>
 
@@ -457,14 +459,54 @@
   `;
 
     document.body.appendChild(pop);
-    @@
-    -428, 51 + 515, 72
-    @@
-        popClose.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            closePop();
-        })
+    const popCard = pop.querySelector('.desc-pop__card');
+    const popHead = pop.querySelector('.desc-pop__head');
+    const popTitle = pop.querySelector('.desc-pop__title');
+    const popBody = pop.querySelector('.desc-pop__body');
+    const popClose = pop.querySelector('.desc-pop__close');
+
+    popCard.style.width = 'min(720px, calc(100vw - 24px))';
+    popCard.style.maxHeight = 'min(80vh, 640px)';
+    popCard.style.background = '#fff';
+    popCard.style.borderRadius = '14px';
+    popCard.style.overflow = 'hidden';
+    popCard.style.boxShadow = '0 20px 60px rgba(0,0,0,0.25)';
+
+    popHead.style.display = 'flex';
+    popHead.style.alignItems = 'center';
+    popHead.style.justifyContent = 'space-between';
+    popHead.style.gap = '12px';
+    popHead.style.padding = '10px 12px';
+    popHead.style.borderBottom = '1px solid rgba(0,0,0,0.08)';
+
+    popTitle.style.fontWeight = '700';
+    popTitle.style.color = '#111827';
+
+    popBody.style.padding = '12px';
+    popBody.style.overflow = 'auto';
+    popBody.style.maxHeight = 'calc(80vh - 52px)';
+    popBody.style.whiteSpace = 'pre-wrap';
+
+    popClose.style.border = '1px solid rgba(0,0,0,0.12)';
+    popClose.style.background = '#ffffff';
+    popClose.style.borderRadius = '10px';
+    popClose.style.padding = '6px 10px';
+    popClose.style.cursor = 'pointer';
+
+    function openPop(text) {
+        popBody.textContent = text || '—';
+        pop.style.display = 'flex';
+    }
+
+    function closePop() {
+        pop.style.display = 'none';
+    }
+
+    popClose.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        closePop();
+    })
     ;
 
     pop.addEventListener('click', (e) => {
